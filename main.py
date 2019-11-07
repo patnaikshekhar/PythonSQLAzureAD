@@ -14,11 +14,11 @@ DATABASE_SERVER = config['database_server']
 DRIVER_NAME = "ODBC Driver 17 for SQL Server"
 
 context = adal.AuthenticationContext(f"https://login.microsoftonline.com/{TENANT_ID}")
-user_code_response = context.acquire_user_code('https://database.windows.net', CLIENT_ID)
+user_code_response = context.acquire_user_code('https://database.windows.net/', CLIENT_ID)
 
 print(user_code_response['message'])
 
-token = context.acquire_token_with_device_code("https://database.windows.net", user_code_response, CLIENT_ID)
+token = context.acquire_token_with_device_code("https://database.windows.net/", user_code_response, CLIENT_ID)
 
 connString = f"Driver={DRIVER_NAME};SERVER={DATABASE_SERVER};DATABASE={DATABASE_NAME}"
 
