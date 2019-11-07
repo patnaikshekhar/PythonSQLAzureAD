@@ -3,41 +3,65 @@ import pyodbc
 import struct
 import json
 
-config = {}
-with open("config.json") as config_file:
-    config = json.load(config_file)
+def read_config():
+    config = {}
+    with open("config.json") as config_file:
+        config = json.load(config_file)
+    return config
 
-CLIENT_ID = config['client_id']
-TENANT_ID = config['tenant_id']
-DATABASE_NAME = config['database_name']
-DATABASE_SERVER = config['database_server']
-DRIVER_NAME = "ODBC Driver 17 for SQL Server"
+def get_token(tenant_id, client_id):
+    context = adal.AuthenticationContext(f"https://login.microsoftonline.com/{tenant_id}")
+    user_code_response = context.acquire_user_code('https://database.windows.net/', client_id)
 
-context = adal.AuthenticationContext(f"https://login.microsoftonline.com/{TENANT_ID}")
-user_code_response = context.acquire_user_code('https://database.windows.net/', CLIENT_ID)
+    print(user_code_response['message'])
 
-print(user_code_response['message'])
+    token = context.acquire_token_with_device_code("https://database.windows.net/", user_code_response, client_id)
 
-token = context.acquire_token_with_device_code("https://database.windows.net/", user_code_response, CLIENT_ID)
+    return token
 
-connString = f"Driver={DRIVER_NAME};SERVER={DATABASE_SERVER};DATABASE={DATABASE_NAME}"
+def create_connection(access_token, database_server, database_name):
 
-#get bytes from token obtained
-tokenb = bytes(token["accessToken"], "UTF-8")
-exptoken = b''
+    DRIVER_NAME = "ODBC Driver 17 for SQL Server"
 
-for i in tokenb:
-    exptoken += bytes({i})
-    exptoken += bytes(1)
-tokenstruct = struct.pack("=i", len(exptoken)) + exptoken
+    connString = f"Driver={DRIVER_NAME};SERVER={database_server};DATABASE={database_name}"
 
-SQL_COPT_SS_ACCESS_TOKEN = 1256 
+    #get bytes from token obtained
+    tokenb = bytes(access_token, "UTF-8")
+    exptoken = b''
 
-conn = pyodbc.connect(connString, attrs_before = { SQL_COPT_SS_ACCESS_TOKEN: tokenstruct})
+    for i in tokenb:
+        exptoken += bytes({i})
+        exptoken += bytes(1)
+    tokenstruct = struct.pack("=i", len(exptoken)) + exptoken
 
-cursor = conn.cursor()
-cursor.execute("SELECT * FROM PEOPLE")
-row = cursor.fetchone()
-while row:
-    print (str(row[0]) + " " + str(row[1]))
+    SQL_COPT_SS_ACCESS_TOKEN = 1256 
+
+    conn = pyodbc.connect(connString, attrs_before = { SQL_COPT_SS_ACCESS_TOKEN: tokenstruct})
+
+    return conn
+
+def print_rows(conn):
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM PEOPLE")
     row = cursor.fetchone()
+    while row:
+        print (str(row[0]) + " " + str(row[1]))
+        row = cursor.fetchone()
+
+def main():
+    config = read_config()
+
+    client_id = config['client_id']
+    tenant_id = config['tenant_id']
+
+    token = get_token(tenant_id, client_id)
+
+    database_name = config['database_name']
+    database_server = config['database_server']
+    
+    conn = create_connection(token["accessToken"], database_server, database_name)
+
+    print_rows(conn)
+
+if __name__ == '__main__':
+    main()
