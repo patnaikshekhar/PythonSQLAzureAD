@@ -5,7 +5,7 @@ import json
 
 def read_config():
     config = {}
-    with open("config.json") as config_file:
+    with open("./config/config.json") as config_file:
         config = json.load(config_file)
     return config
 
@@ -49,18 +49,22 @@ def print_rows(conn):
         row = cursor.fetchone()
 
 def main():
+    print("Reading Config")
     config = read_config()
 
     client_id = config['client_id']
     tenant_id = config['tenant_id']
 
+    print("Getting Token")
     token = get_token(tenant_id, client_id)
 
     database_name = config['database_name']
     database_server = config['database_server']
     
+    print("Connecting to Database")
     conn = create_connection(token["accessToken"], database_server, database_name)
 
+    print("Printing Rows")
     print_rows(conn)
 
 if __name__ == '__main__':
